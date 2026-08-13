@@ -11,6 +11,7 @@ PC 화면에 뜬 QR 을 폰 카메라로 찍으면 끝입니다.<br />
 <img src="https://img.shields.io/badge/dependencies-1-2F6DF6" alt="dependencies 1" />
 <img src="https://img.shields.io/badge/설치-앱%20필요%20없음-16A34A" alt="앱 설치 불필요" />
 <img src="https://img.shields.io/badge/전송-로컬%20전용-8A6100" alt="로컬 전용" />
+<img src="https://img.shields.io/badge/license-MIT-6B7280" alt="MIT License" />
 
 <br /><br />
 
@@ -217,6 +218,10 @@ Test-NetConnection -ComputerName <상대기기IP> -InformationLevel Detailed
 | --- | --- |
 | [설치문서.pdf](설치문서.pdf) | 처음 쓰는 사람 — 인쇄해서 건네도 됩니다 |
 | [개발문서.md](개발문서.md) | 이어서 개발할 사람 — 설계 근거와 함정까지 |
+
+## 라이선스
+
+[MIT](LICENSE)
 
 ## 기여할 때 알아둘 것
 
