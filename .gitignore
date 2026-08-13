@@ -1,0 +1,10 @@
+node_modules/
+
+# 주고받는 파일이 담기는 곳. 세션용 임시 공간이라 저장소에 올리지 않는다.
+received/
+share/
+
+# 실행 중 생기는 것들
+*.log
+qr-preview.svg
+.claude/

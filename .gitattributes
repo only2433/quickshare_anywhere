@@ -1,0 +1,6 @@
+# 배치 파일은 반드시 CRLF 여야 한다. LF 로 바뀌면 cmd 가 파싱하지 못해 실행되지 않는다.
+*.bat text eol=crlf
+
+* text=auto eol=lf
+*.pdf binary
+*.svg text eol=lf

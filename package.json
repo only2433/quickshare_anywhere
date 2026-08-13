@@ -1,0 +1,15 @@
+{
+  "name": "quickshare-workspace",
+  "version": "1.0.0",
+  "description": "PC를 파일 공유 서버로 만들어, 태블릿/폰 브라우저로 파일을 주고받는다. 외부 서비스를 전혀 거치지 않으므로 사내망 보안장비(SSL 검사)의 영향을 받지 않는다.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "qrcode": "^1.5.4"
+  }
+}

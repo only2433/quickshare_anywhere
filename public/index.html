@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <title>QuickShare</title>
+    <style>
+      :root {
+        --bg: #f4f5f7;
+        --card: #ffffff;
+        --text: #16181d;
+        --muted: #6b7280;
+        --line: #e3e5e9;
+        --accent: #2f6df6;
+        --accent-text: #ffffff;
+        --ok: #16a34a;
+        --err: #dc2626;
+        --radius: 14px;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #15171b;
+          --card: #1e2127;
+          --text: #eceef2;
+          --muted: #9aa1ad;
+          --line: #2e323a;
+          --accent: #4b83ff;
+          --ok: #4ade80;
+          --err: #f87171;
+        }
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        padding: 24px 16px calc(40px + env(safe-area-inset-bottom));
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
+        line-height: 1.55;
+        -webkit-text-size-adjust: 100%;
+      }
+
+      .wrap { max-width: 560px; margin: 0 auto; }
+
+      header { text-align: center; margin-bottom: 24px; }
+      header h1 { font-size: 1.5rem; margin: 0 0 4px; letter-spacing: -0.02em; }
+      header p { margin: 0; color: var(--muted); font-size: 0.9rem; }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 20px;
+        margin-bottom: 16px;
+      }
+
+      h2 {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        margin: 0 0 14px;
+      }
+
+      button {
+        font: inherit;
+        font-weight: 600;
+        border: 0;
+        border-radius: 10px;
+        padding: 15px 20px;
+        background: var(--accent);
+        color: var(--accent-text);
+        cursor: pointer;
+        width: 100%;
+        min-height: 52px; /* 터치 영역 확보 */
+      }
+      button:active { opacity: 0.85; }
+      button:disabled { opacity: 0.5; cursor: default; }
+
+      input[type='tel'] {
+        font: inherit;
+        font-size: 2rem;
+        font-weight: 600;
+        letter-spacing: 0.5em;
+        text-align: center;
+        text-indent: 0.5em;
+        width: 100%;
+        padding: 14px 0;
+        margin-bottom: 14px;
+        border: 2px solid var(--line);
+        border-radius: 10px;
+        background: var(--bg);
+        color: var(--text);
+      }
+      input[type='tel']:focus { outline: none; border-color: var(--accent); }
+
+      .hint { color: var(--muted); font-size: 0.85rem; text-align: center; margin: 12px 0 0; }
+      .error { color: var(--err); font-size: 0.9rem; text-align: center; margin: 12px 0 0; min-height: 1.4em; }
+
+      .drop {
+        border: 2px dashed var(--line);
+        border-radius: var(--radius);
+        padding: 28px 16px;
+        text-align: center;
+        color: var(--muted);
+        margin-bottom: 14px;
+        transition: border-color 0.15s, color 0.15s;
+      }
+      .drop.over { border-color: var(--accent); color: var(--accent); }
+
+
+      .bar { height: 4px; background: var(--line); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+      .bar > div { height: 100%; width: 0; background: var(--accent); transition: width 0.15s linear; }
+      .bar.fail > div { background: var(--err); width: 100% !important; }
+
+      .file {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: baseline;
+        padding: 13px 0;
+        border-top: 1px solid var(--line);
+        color: var(--accent);
+        text-decoration: none;
+        font-size: 0.92rem;
+      }
+      .file:first-child { border-top: 0; }
+      .file > div { flex: 1; min-width: 0; }
+      .file .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .file > span { color: var(--muted); font-size: 0.8rem; white-space: nowrap; }
+
+      /* 전송 중인 항목. 끝나면 서버가 준 목록의 항목으로 대체된다 */
+      .file.sending { color: var(--text); }
+      .file.sending > span { color: var(--accent); }
+      .file.failed > span { color: var(--err); }
+
+      /* 탭 — 전역 button 스타일을 덮어쓴다 */
+      .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+      .tab {
+        width: auto;
+        min-height: 0;
+        padding: 9px 14px;
+        border-radius: 8px 8px 0 0;
+        background: transparent;
+        color: var(--muted);
+        font-size: 0.85rem;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+      }
+      .tab.is-active { color: var(--text); border-bottom-color: var(--accent); }
+      .tab .count { font-weight: 400; opacity: 0.6; }
+
+      /* 새 파일이 도착하면 탭이 세 번 깜빡인다.
+         글자 색만 바꾸면 눈에 안 띄어서 영역째 칠한다. */
+      @keyframes tab-alert {
+        0%, 100% { background: transparent; color: var(--muted); }
+        50% { background: var(--accent); color: var(--accent-text); }
+      }
+      @keyframes tab-alert-active {
+        0%, 100% { background: transparent; color: var(--text); }
+        50% { background: var(--accent); color: var(--accent-text); }
+      }
+      .tab.alert { animation: tab-alert 0.5s ease-in-out 3; }
+      .tab.is-active.alert { animation-name: tab-alert-active; }
+      @media (prefers-reduced-motion: reduce) {
+        .tab.alert, .tab.is-active.alert { animation: none; }
+      }
+
+      /* 목록은 카드 안에서만 스크롤한다. 개수가 늘어도 페이지는 안 밀린다 */
+      .list {
+        max-height: 40vh; /* 더 키우면 목록이 꽉 찼을 때 페이지 자체가 스크롤된다 */
+        min-height: 120px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+      }
+
+      .empty { color: var(--muted); font-size: 0.88rem; text-align: center; padding: 8px 0; }
+      .hidden { display: none !important; }
+
+      #qr {
+        display: block;
+        width: 100%;
+        max-width: 280px;
+        margin: 0 auto 14px;
+        border-radius: 8px;
+        background: #fff; /* QR 은 밝은 배경에서만 읽힌다 */
+      }
+      .address {
+        text-align: center;
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 0.95rem;
+        margin: 0;
+        word-break: break-all;
+      }
+      .address strong { color: var(--accent); }
+
+      /* PC 화면에서는 QR 을 왼쪽에 세우고 나머지를 오른쪽에 쌓는다.
+         한 줄로 쌓으면 QR 높이만큼 파일 목록이 화면 밖으로 밀린다. */
+      @media (min-width: 900px) {
+        body.host .wrap { max-width: 1040px; }
+        body.host #app {
+          display: grid;
+          grid-template-columns: 320px minmax(0, 1fr);
+          gap: 16px;
+          align-items: start;
+        }
+        body.host #connect {
+          position: sticky; /* 오른쪽을 스크롤해도 QR 은 남아 있게 */
+          top: 24px;
+          margin-bottom: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <h1>QuickShare</h1>
+        <p id="subtitle">연결 확인 중…</p>
+      </header>
+
+      <!-- 인증 -->
+      <section id="login" class="card hidden">
+        <h2>접속 코드</h2>
+        <input
+          id="pin"
+          type="tel"
+          inputmode="numeric"
+          autocomplete="off"
+          maxlength="4"
+          placeholder="0000"
+        />
+        <button id="login-btn">연결</button>
+        <p class="hint">PC 화면에 표시된 4자리 코드를 입력하세요.</p>
+        <p class="error" id="login-error"></p>
+      </section>
+
+      <!-- 본문 -->
+      <main id="app" class="hidden">
+        <!-- PC 화면에서만 보인다 -->
+        <section id="connect" class="card hidden">
+          <h2>폰·태블릿 연결</h2>
+          <img id="qr" alt="접속용 QR 코드" />
+          <p class="address"><span id="connect-address"></span></p>
+          <p class="hint">
+            카메라로 QR 을 찍으면 코드 입력 없이 바로 열립니다.<br />
+            직접 입력할 때 코드는 <strong id="connect-pin"></strong> 입니다.
+          </p>
+        </section>
+
+        <div class="stack">
+          <section class="card">
+            <h2 id="upload-title">보내기</h2>
+            <div class="drop" id="drop">여기에 끌어다 놓거나 아래 버튼을 누르세요</div>
+            <input id="picker" type="file" multiple class="hidden" />
+            <button id="pick-btn">파일 선택</button>
+            <p class="hint hidden" id="pick-hint">사진·동영상·문서를 여러 개 한 번에 고를 수 있습니다.</p>
+          </section>
+
+          <section class="card">
+            <div class="tabs" role="tablist">
+              <button class="tab is-active" data-target="inbox" role="tab" aria-selected="true">
+                받은 파일 <span class="count"></span>
+              </button>
+              <button class="tab" data-target="outbox" role="tab" aria-selected="false">
+                보낸 파일 <span class="count"></span>
+              </button>
+            </div>
+            <div class="list" id="inbox"><p class="empty">불러오는 중…</p></div>
+            <div class="list hidden" id="outbox"><p class="empty">불러오는 중…</p></div>
+            <p class="hint">보관용이 아닙니다. 서버를 다시 켜면 이 목록은 모두 지워집니다.</p>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+
+      const subtitle = $('subtitle');
+      const login = $('login');
+      const app = $('app');
+      const pin = $('pin');
+      const loginBtn = $('login-btn');
+      const loginError = $('login-error');
+      const picker = $('picker');
+      const drop = $('drop');
+
+      function formatSize(bytes) {
+        const units = ['B', 'KB', 'MB', 'GB'];
+        let value = bytes;
+        let unit = 0;
+        while (value >= 1024 && unit < units.length - 1) {
+          value /= 1024;
+          unit++;
+        }
+        return value.toFixed(unit === 0 ? 0 : 1) + units[unit];
+      }
+
+      function timeAgo(ms) {
+        const seconds = Math.max(0, (Date.now() - ms) / 1000);
+        if (seconds < 10) return '방금';
+        if (seconds < 60) return Math.floor(seconds) + '초 전';
+        if (seconds < 3600) return Math.floor(seconds / 60) + '분 전';
+        if (seconds < 86400) return Math.floor(seconds / 3600) + '시간 전';
+        return new Date(ms).toLocaleDateString('ko-KR');
+      }
+
+      // ---------------------------------------------------------- 인증
+
+      /**
+       * 같은 폴더라도 어느 쪽에서 보느냐에 따라 '받은 파일' 과 '보낸 파일' 이 뒤바뀐다.
+       * host = 서버를 돌리는 PC, guest = 태블릿·폰
+       */
+      const VIEW = {
+        host: {
+          subtitle: '이 PC에서 실행 중',
+          uploadTitle: '태블릿·폰으로 보내기',
+          dropText: '여기에 끌어다 놓거나 아래 버튼을 누르세요',
+          inbox: { box: 'received', empty: '태블릿에서 보낸 파일이 여기에 표시됩니다.' },
+          outbox: { box: 'share', empty: '위에서 파일을 올리면 태블릿에서 받아갈 수 있습니다.' },
+        },
+        guest: {
+          subtitle: 'PC에 연결됨',
+          uploadTitle: 'PC로 보내기',
+          dropText: null, // 폰·태블릿에서는 끌어다 놓기가 안 된다
+          inbox: { box: 'share', empty: 'PC에서 보낸 파일이 여기에 표시됩니다.' },
+          outbox: { box: 'received', empty: '아직 보낸 파일이 없습니다.' },
+        },
+      };
+
+      let view = VIEW.guest;
+
+      async function checkSession() {
+        try {
+          const res = await fetch('/api/session');
+          const data = await res.json();
+          view = VIEW[data.role] ?? VIEW.guest;
+          $('upload-title').textContent = view.uploadTitle;
+
+          // 끌어다 놓기는 서버를 돌리는 PC 에서만 쓸 수 있다
+          if (view.dropText) drop.textContent = view.dropText;
+          drop.classList.toggle('hidden', !view.dropText);
+          $('pick-hint').classList.toggle('hidden', Boolean(view.dropText));
+
+          if (data.connect) {
+            $('qr').src = '/api/qr';
+            $('connect-address').textContent = data.connect.address;
+            $('connect-pin').textContent = data.connect.pin;
+            $('connect').classList.remove('hidden');
+            document.body.classList.add('host'); // 넓은 화면에서 2단으로
+          }
+
+          if (!data.authed && (await tryUrlCode())) return;
+          showScreen(data.authed);
+        } catch {
+          subtitle.textContent = '서버에 연결할 수 없습니다';
+        }
+      }
+
+      function showScreen(authed) {
+        login.classList.toggle('hidden', authed);
+        app.classList.toggle('hidden', !authed);
+        subtitle.textContent = authed ? view.subtitle : 'PC와 연결하려면 코드를 입력하세요';
+        if (authed) loadFiles();
+        else pin.focus();
+      }
+
+      async function authenticate(code) {
+        const res = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin: code }),
+        });
+        return await res.json();
+      }
+
+      /** QR 로 열면 주소에 ?code= 가 붙어 있다. 한 번 쓰고 주소창에서 지운다. */
+      async function tryUrlCode() {
+        const code = new URLSearchParams(location.search).get('code');
+        if (!code) return false;
+        history.replaceState(null, '', location.pathname);
+
+        const data = await authenticate(code).catch(() => ({ ok: false }));
+        if (data.ok) showScreen(true);
+        return data.ok;
+      }
+
+      async function submitPin() {
+        loginError.textContent = '';
+        loginBtn.disabled = true;
+        try {
+          const data = await authenticate(pin.value);
+          if (data.ok) {
+            pin.value = '';
+            showScreen(true);
+          } else {
+            loginError.textContent = data.error || '연결에 실패했습니다.';
+            pin.value = '';
+            pin.focus();
+          }
+        } catch {
+          loginError.textContent = '서버에 연결할 수 없습니다.';
+        } finally {
+          loginBtn.disabled = false;
+        }
+      }
+
+      loginBtn.addEventListener('click', submitPin);
+      pin.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') submitPin();
+      });
+      // 4자리를 채우면 굳이 버튼을 누르지 않아도 되게 한다.
+      pin.addEventListener('input', () => {
+        if (pin.value.length === 4) submitPin();
+      });
+
+      // ---------------------------------------------------------- 상태
+
+      /** 서버에서 받아온 목록 */
+      const files = { inbox: [], outbox: [] };
+      /** 전송 중인 항목. 끝나면 서버 목록의 항목이 대신 자리를 잡는다 */
+      const sending = new Map();
+      /** 도착 알림용 — 직전에 본 파일 이름들 */
+      const seen = { inbox: null, outbox: null };
+
+      let sendSeq = 0;
+
+      // ---------------------------------------------------------- 업로드
+
+      function uploadOne(file) {
+        const id = ++sendSeq;
+        sending.set(id, { name: file.name, size: file.size, percent: 0, error: '' });
+        renderBox('outbox');
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', '/api/upload?name=' + encodeURIComponent(file.name));
+
+        xhr.upload.addEventListener('progress', (e) => {
+          const entry = sending.get(id);
+          if (!e.lengthComputable || !entry) return;
+          entry.percent = Math.round((e.loaded / e.total) * 100);
+          renderBox('outbox');
+        });
+
+        xhr.addEventListener('load', () => {
+          if (xhr.status === 200) {
+            sending.delete(id);
+            loadFiles(); // 5초 주기를 기다리지 않고 바로 목록에 반영한다
+          } else if (xhr.status === 401) {
+            markFailed(id, '인증 만료');
+            showScreen(false);
+          } else {
+            markFailed(id, '실패');
+          }
+        });
+        xhr.addEventListener('error', () => markFailed(id, '연결 끊김'));
+        xhr.addEventListener('abort', () => markFailed(id, '취소됨'));
+
+        xhr.send(file);
+      }
+
+      function markFailed(id, text) {
+        const entry = sending.get(id);
+        if (!entry) return;
+        entry.error = text;
+        renderBox('outbox');
+      }
+
+      function send(fileList) {
+        for (const file of fileList) uploadOne(file);
+        switchTab('outbox'); // 진행 상황이 보이는 쪽으로 옮겨준다
+      }
+
+      $('pick-btn').addEventListener('click', () => picker.click());
+      picker.addEventListener('change', () => {
+        send(picker.files);
+        picker.value = ''; // 같은 파일을 다시 고를 수 있게 초기화
+      });
+
+      // 카드 전체가 받는다. 안내 상자가 숨겨진 화면에서도 끌어다 놓기는 동작한다.
+      const uploadCard = $('pick-btn').closest('.card');
+
+      for (const type of ['dragenter', 'dragover']) {
+        uploadCard.addEventListener(type, (e) => {
+          e.preventDefault();
+          drop.classList.add('over');
+        });
+      }
+      for (const type of ['dragleave', 'drop']) {
+        uploadCard.addEventListener(type, (e) => {
+          e.preventDefault();
+          drop.classList.remove('over');
+        });
+      }
+      uploadCard.addEventListener('drop', (e) => {
+        if (e.dataTransfer?.files?.length) send(e.dataTransfer.files);
+      });
+
+      // ---------------------------------------------------------- 탭
+
+      function switchTab(target) {
+        for (const tab of document.querySelectorAll('.tab')) {
+          const on = tab.dataset.target === target;
+          tab.classList.toggle('is-active', on);
+          tab.setAttribute('aria-selected', String(on));
+        }
+        $('inbox').classList.toggle('hidden', target !== 'inbox');
+        $('outbox').classList.toggle('hidden', target !== 'outbox');
+      }
+
+      let deferredBlink = null;
+
+      /** 파일이 도착했음을 탭 제목을 깜빡여 알린다. */
+      function blinkTab(target) {
+        // 화면이 가려져 있으면 브라우저가 프레임을 안 그려서 깜빡임이 그냥 소진된다.
+        // 돌아왔을 때 보여주려고 미뤄둔다.
+        if (document.hidden) {
+          deferredBlink = target;
+          return;
+        }
+        const tab = document.querySelector(`.tab[data-target="${target}"]`);
+        if (!tab) return;
+        tab.classList.remove('alert');
+        void tab.offsetWidth; // 애니메이션을 처음부터 다시 돌리기 위한 리플로우
+        tab.classList.add('alert');
+      }
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden || !deferredBlink) return;
+        const target = deferredBlink;
+        deferredBlink = null;
+        blinkTab(target);
+      });
+
+      for (const tab of document.querySelectorAll('.tab')) {
+        tab.addEventListener('click', () => switchTab(tab.dataset.target));
+      }
+      document.addEventListener('animationend', (e) => {
+        if (e.target.classList?.contains('alert')) e.target.classList.remove('alert');
+      });
+
+      // ---------------------------------------------------------- 파일 목록
+
+      function rowFor(item, box) {
+        const left = document.createElement('div');
+        const name = document.createElement('div');
+        name.className = 'name';
+        name.textContent = item.name;
+        left.append(name);
+
+        const meta = document.createElement('span');
+
+        if (item.sending) {
+          const row = document.createElement('div');
+          row.className = 'file ' + (item.error ? 'failed' : 'sending');
+
+          const bar = document.createElement('div');
+          bar.className = 'bar' + (item.error ? ' fail' : '');
+          const fill = document.createElement('div');
+          fill.style.width = item.percent + '%';
+          bar.append(fill);
+          left.append(bar);
+
+          meta.textContent = item.error || `${item.percent}% · ${formatSize(item.size)}`;
+          row.append(left, meta);
+          return row;
+        }
+
+        const link = document.createElement('a');
+        link.className = 'file';
+        link.href = `/api/download?box=${box}&name=` + encodeURIComponent(item.name);
+        link.setAttribute('download', item.name);
+        meta.textContent = `${formatSize(item.size)} · ${timeAgo(item.mtime)}`;
+        link.append(left, meta);
+        return link;
+      }
+
+      function renderBox(target) {
+        const el = $(target);
+        const items = [];
+
+        // 전송 중인 항목은 보내는 쪽 목록 맨 위에 둔다
+        if (target === 'outbox') {
+          for (const entry of sending.values()) items.push({ sending: true, ...entry });
+        }
+        items.push(...files[target]);
+
+        el.textContent = '';
+        if (items.length) {
+          for (const item of items) el.append(rowFor(item, view[target].box));
+        } else {
+          const p = document.createElement('p');
+          p.className = 'empty';
+          p.textContent = view[target].empty;
+          el.append(p);
+        }
+
+        const count = document.querySelector(`.tab[data-target="${target}"] .count`);
+        if (count) count.textContent = items.length || '';
+      }
+
+      async function loadBox(target) {
+        const el = $(target);
+        try {
+          const res = await fetch('/api/files?box=' + view[target].box);
+          if (res.status === 401) return showScreen(false);
+          files[target] = (await res.json()).files ?? [];
+
+          // 처음 불러온 게 아니고 새 이름이 생겼으면 = 방금 도착한 파일
+          const names = new Set(files[target].map((f) => f.name));
+          const arrived = seen[target] && [...names].some((n) => !seen[target].has(n));
+          seen[target] = names;
+
+          renderBox(target);
+          if (arrived && target === 'inbox') blinkTab('inbox');
+        } catch {
+          el.textContent = '';
+          const p = document.createElement('p');
+          p.className = 'empty';
+          p.textContent = '목록을 불러오지 못했습니다.';
+          el.append(p);
+        }
+      }
+
+      function loadFiles() {
+        loadBox('inbox');
+        loadBox('outbox');
+      }
+
+      checkSession();
+      setInterval(() => {
+        if (!app.classList.contains('hidden')) loadFiles();
+      }, 5000);
+    </script>
+  </body>
+</html>
